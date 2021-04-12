@@ -65,6 +65,7 @@ class TeleNotify(CBPiExtension):
 
     async def messageEvent(self, cbpi, title, message, type, action):
         if self.is_init:
+            print(self.token, title)
             text = "<b>" + title + "</b>\n<i>" + message + "</i>"
             url = "https://api.telegram.org/bot" + self.token + "/sendMessage"
             escaped_url = requests.Request('GET', url, params={"chat_id": self.chat_id, "text": text,
