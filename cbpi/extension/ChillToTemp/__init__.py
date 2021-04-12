@@ -39,7 +39,6 @@ class ChillStep(CBPiStep):
         await self.push_update()
 
     async def on_stop(self):
-        await self.timer.stop()
         self.summary = ""
         await self.push_update()
 
@@ -63,14 +62,6 @@ class ChillStep(CBPiStep):
             else:
                 # Nullifies The samples streak
                 self.sample_streak = 0
-            # Check if timer finished and go to next step
-            # if self.is_timer_finished():
-            #     self.cbpi.notify("Step Temp Wasn't Reached!", "Good luck:(", timeout=None)
-            #     # turns pump off at finish
-            #     await self.actor_off(int(self.prime_pump))
-            #     if self.sec_pump is not None:
-            #         await self.actor_off(int(self.sec_pump))
-            #     await self.next()
 
 
 def setup(cbpi):
