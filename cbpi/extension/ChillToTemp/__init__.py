@@ -72,7 +72,7 @@ class Cooldown(CBPiStep):
         if self.props.Secondary_Actor is not None:
             await self.actor_on(self.props.Secondary_Actor)
         self.cbpi.notify('CoolDown', "Step started", NotificationType.INFO)
-        while self.running:
+        while True:
             await asyncio.sleep(1)
             if self.get_sensor_value(self.props.Sensor).get("value") <= float(self.props.Temp):
                 self._samp_count += 1
@@ -83,7 +83,7 @@ class Cooldown(CBPiStep):
                 if self.props.Secondary_Actor is not None:
                     await self.actor_off(self.props.Secondary_Actor)
                 break
-            return StepResult.DONE
+        return StepResult.DONE
 
 
 def setup(cbpi):
