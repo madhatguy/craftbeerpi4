@@ -27,10 +27,10 @@ class Cooldown(CBPiStep):
     @action("Add 5 Minutes to Timer", [])
     async def add_timer(self):
         if self.timer._task != None:
-            self.cbpi.notify(self.name, '5 Minutes added', NotificationType.INFO)
+            await self.cbpi.notify(self.name, '5 Minutes added', NotificationType.INFO)
             await self.timer.add(300)
         else:
-            self.cbpi.notify(self.name, 'Timer must be running to add time', NotificationType.WARNING)
+            await self.cbpi.notify(self.name, 'Timer must be running to add time', NotificationType.WARNING)
 
     async def on_timer_done(self, timer):
         self.summary = ""
@@ -38,7 +38,7 @@ class Cooldown(CBPiStep):
             await self.actor_off(self.props.Actor)
         if self.props.Secondary_Actor is not None:
             await self.actor_off(self.props.Secondary_Actor)
-        self.cbpi.notify('CoolDown', "Wort didn't cool to desired temp): Good luck", NotificationType.INFO)
+        await self.cbpi.notify('CoolDown', "Wort didn't cool to desired temp): Good luck", NotificationType.INFO)
         await self.next()
 
     async def on_timer_update(self, timer, seconds):
@@ -57,7 +57,7 @@ class Cooldown(CBPiStep):
             await self.actor_off(self.props.Actor)
         if self.props.Secondary_Actor is not None:
             await self.actor_off(self.props.Secondary_Actor)
-        self.cbpi.notify('CoolDown', "Step was stopped", NotificationType.INFO)
+        await self.cbpi.notify('CoolDown', "Step was stopped", NotificationType.INFO)
         await self.next()
 
         await self.push_update()
