@@ -34,10 +34,6 @@ class Cooldown(CBPiStep):
 
     async def on_timer_done(self, timer):
         self.summary = ""
-        if self.props.Actor is not None:
-            await self.actor_off(self.props.Actor)
-        if self.props.Secondary_Actor is not None:
-            await self.actor_off(self.props.Secondary_Actor)
         self.cbpi.notify('CoolDown', 'Step finished', NotificationType.INFO)
         await self.next()
 
@@ -57,9 +53,6 @@ class Cooldown(CBPiStep):
             await self.actor_off(self.props.Actor)
         if self.props.Secondary_Actor is not None:
             await self.actor_off(self.props.Secondary_Actor)
-        self.cbpi.notify('CoolDown', "Step was stopped", NotificationType.INFO)
-        await self.next()
-
         await self.push_update()
 
     async def reset(self):
@@ -78,10 +71,6 @@ class Cooldown(CBPiStep):
                 self._samp_count += 1
             if self._samp_count >= int(self.props.Samples):
                 self.cbpi.notify('CoolDown', "Desired temp was reached", NotificationType.INFO)
-                if self.props.Actor is not None:
-                    await self.actor_off(self.props.Actor)
-                if self.props.Secondary_Actor is not None:
-                    await self.actor_off(self.props.Secondary_Actor)
                 break
         return StepResult.DONE
 
