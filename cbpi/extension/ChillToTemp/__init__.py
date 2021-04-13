@@ -2,30 +2,43 @@ import asyncio
 from cbpi.api.step import CBPiStep, StepResult
 from cbpi.api.timer import Timer
 from cbpi.api import *
-import logging
+from cbpi.api.dataclasses import NotificationAction, NotificationType
 
 
-@parameters([Property.Number(label="Upper Bound in Minutes", description="The time after which this step will conclude,"
-                                                                         " regardless of the current temp",
-                             configurable=True),
-             Property.Number(label="Temp", configurable=True),
-             Property.Sensor(label="Sensor"),
-             Property.Kettle(label="Kettle"),
-             Property.Actor(label="Chiller Primary Pump"),
-             Property.Actor(label="Secondary Pump")])
-class ChillStep(CBPiStep):
+@parameters([Property.Number(label="Temp", configurable=True,
+                             description="Target temperature for cooldown. "
+                                         "Notification will be send when temp is reached and Actor can be triggered"),
+             Property.Number(label="Timer", configurable=True,
+                             description="The time until step is forced finished"),
+             Property.Sensor(label="Sensor", description="Sensor that is used during cooldown"),
+             Property.Actor(label="Actor",
+                            description="Actor can trigger a valve for the cooldown to target temperature"),
+             Property.Actor(label="Secondary_Actor",
+                            description="Actor can trigger a valve for the cooldown to target temperature"),
+             Property.Number(label="Samples", configurable=True, default_value=5,
+                             description="Number of samples that are in the desired range before finishing this step")
+             ])
+class Cooldown(CBPiStep):
 
     def __init__(self, cbpi, id, name, props, on_done):
         super().__init__(cbpi, id, name, props, on_done)
-        self.sample_streak = 0
+        self._samp_count = 0
+
+    @action("Add 5 Minutes to Timer", [])
+    async def add_timer(self):
+        if self.timer._task != None:
+            self.cbpi.notify(self.name, '5 Minutes added', NotificationType.INFO)
+            await self.timer.add(300)
+        else:
+            self.cbpi.notify(self.name, 'Timer must be running to add time', NotificationType.WARNING)
 
     async def on_timer_done(self, timer):
         self.summary = ""
-        self.cbpi.notify("Step Temp Wasn't Reached!", "Good luck:(", timeout=None)
-        # turns pump off at finish
-        await self.actor_off(int(self.prime_pump))
-        if self.sec_pump is not None:
-            await self.actor_off(int(self.sec_pump))
+        if self.props.Actor is not None:
+            await self.actor_off(self.props.Actor)
+        if self.props.Secondary_Actor is not None:
+            await self.actor_off(self.props.Secondary_Actor)
+        self.cbpi.notify('CoolDown', "Wort didn't cool to desired temp): Good luck", NotificationType.INFO)
         await self.next()
 
     async def on_timer_update(self, timer, seconds):
@@ -35,43 +48,50 @@ class ChillStep(CBPiStep):
     async def on_start(self):
         if self.timer is None:
             self.timer = Timer(int(self.props.Timer) * 60, on_update=self.on_timer_update, on_done=self.on_timer_done)
-        self.summary = "Waiting for Target Temp"
-        await self.push_update()
+        self.timer.start()
 
     async def on_stop(self):
+        await self.timer.stop()
         self.summary = ""
+        if self.props.Actor is not None:
+            await self.actor_off(self.props.Actor)
+        if self.props.Secondary_Actor is not None:
+            await self.actor_off(self.props.Secondary_Actor)
+        self.cbpi.notify('CoolDown', "Step was stopped", NotificationType.INFO)
+        await self.next()
+
         await self.push_update()
 
     async def reset(self):
-        self.summary = ""
         self.timer = Timer(int(self.props.Timer) * 60, on_update=self.on_timer_update, on_done=self.on_timer_done)
+        self.cbpi.notify('CoolDown', "Timer was reset", NotificationType.INFO)
 
     async def run(self):
-        while True:
-            # Check if Target Temp has been reached
-            if self.get_kettle_temp(self.kettle) <= float(self.temp):
-                self.sample_streak += 1
-                # Checks if Target Amount of Samples is reached
-                if self.sample_streak == self.Samples:
-                    self.cbpi.notify("Yeast Pitch Temp Reached!", "Move to fermentation tank", timeout=None)
-                    # turns pump off at finish
-                    await self.actor_off(int(self.prime_pump))
-                    if self.sec_pump is not None:
-                        await self.actor_off(int(self.sec_pump))
-                    await self.next()
-            else:
-                # Nullifies The samples streak
-                self.sample_streak = 0
+        if self.props.Actor is not None:
+            await self.actor_on(self.props.Actor)
+        if self.props.Secondary_Actor is not None:
+            await self.actor_on(self.props.Secondary_Actor)
+        self.cbpi.notify('CoolDown', "Step started", NotificationType.INFO)
+        while self.running:
+            await asyncio.sleep(1)
+            if self.get_sensor_value(self.props.Sensor).get("value") <= self.props.Temp:
+                self._samp_count += 1
+            if self._samp_count == self.props.Samples:
+                self.cbpi.notify('CoolDown', "Desired temp was reached", NotificationType.INFO)
+                if self.props.Actor is not None:
+                    await self.actor_off(self.props.Actor)
+                if self.props.Secondary_Actor is not None:
+                    await self.actor_off(self.props.Secondary_Actor)
+                break
+            return StepResult.DONE
 
 
 def setup(cbpi):
     '''
-    This method is called by the server during startup 
+    This method is called by the server during startup
     Here you need to register your plugins at the server
 
-    :param cbpi: the cbpi core 
-    :return: 
+    :param cbpi: the cbpi core
+    :return:
     '''
-
-    cbpi.plugin.register("ChillStep", ChillStep)
-
+    cbpi.plugin.register("Cooldown", Cooldown)
