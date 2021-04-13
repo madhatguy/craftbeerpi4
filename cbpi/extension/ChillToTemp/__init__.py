@@ -38,7 +38,7 @@ class Cooldown(CBPiStep):
             await self.actor_off(self.props.Actor)
         if self.props.Secondary_Actor is not None:
             await self.actor_off(self.props.Secondary_Actor)
-        self.cbpi.notify('CoolDown', "Wort didn't cool to desired temp): Good luck", NotificationType.INFO)
+        self.cbpi.notify('CoolDown', 'Step finished', NotificationType.INFO)
         await self.next()
 
     async def on_timer_update(self, timer, seconds):
@@ -76,7 +76,7 @@ class Cooldown(CBPiStep):
             await asyncio.sleep(1)
             if self.get_sensor_value(self.props.Sensor).get("value") <= float(self.props.Temp):
                 self._samp_count += 1
-            if self._samp_count == self.props.Samples:
+            if self._samp_count >= int(self.props.Samples):
                 self.cbpi.notify('CoolDown', "Desired temp was reached", NotificationType.INFO)
                 if self.props.Actor is not None:
                     await self.actor_off(self.props.Actor)
